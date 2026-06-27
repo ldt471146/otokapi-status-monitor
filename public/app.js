@@ -77,7 +77,7 @@ function render() {
 
 function renderOverall(data) {
   const summary = data.channel_summary || {};
-  const status = data.ok === false ? 'failed' : summary.overall_status || 'unknown';
+  const status = data.ok === false ? 'degraded' : summary.overall_status || 'unknown';
   elements.overallPill.className = `overall-pill ${escapeHtml(statusBucket(status))}`;
   elements.overallPill.innerHTML = `<span></span>${escapeHtml(statusLabel(status).toUpperCase())}`;
 }
@@ -104,7 +104,7 @@ function renderChannels(channels) {
           <div class="title-block">
             <h2 title="${escapeAttr(channel.name)}">${escapeHtml(channel.name || '-')}</h2>
             <p>
-              <span>${escapeHtml(channel.provider || 'unknown')}</span>
+              <span>${escapeHtml(providerLabel(channel.provider))}</span>
               <code>${escapeHtml(channel.primary_model || '-')}</code>
             </p>
           </div>
@@ -140,9 +140,10 @@ function renderChannels(channels) {
 
 function renderTimeline(points) {
   if (points.length === 0) return '<div class="timeline empty-timeline"></div>';
+  const timeline = [...points].reverse();
   return `
     <div class="timeline" aria-label="最近 60 次状态记录">
-      ${points.map((point) => {
+      ${timeline.map((point) => {
         const status = statusBucket(point.status);
         const title = `${formatDateTime(point.checked_at)} · ${statusText(point.status)} · ${latency(point.latency_ms)}`;
         return `<span class="${escapeHtml(status)}" title="${escapeAttr(title)}"></span>`;
@@ -161,7 +162,7 @@ function renderFootnote(data, channels) {
 }
 
 function renderError(error) {
-  elements.overallPill.className = 'overall-pill failed';
+  elements.overallPill.className = 'overall-pill degraded';
   elements.overallPill.innerHTML = '<span></span>ERROR';
   elements.channelGrid.innerHTML = `
     <article class="empty-card">
@@ -207,7 +208,8 @@ function availabilityForRange(channel, range) {
 function statusBucket(status) {
   const value = String(status || '').toLowerCase();
   if (['operational', 'success', 'healthy'].includes(value)) return 'operational';
-  if (['failed', 'error', 'down'].includes(value)) return 'failed';
+  if (['failed', 'down'].includes(value)) return 'failed';
+  if (value === 'error') return 'error';
   if (['unknown', 'empty', ''].includes(value)) return 'unknown';
   return 'degraded';
 }
@@ -217,6 +219,7 @@ function statusLabel(status) {
   return {
     operational: 'operational',
     degraded: 'degraded',
+    error: 'error',
     failed: 'failed',
     unknown: 'unknown'
   }[bucket];
@@ -227,9 +230,19 @@ function statusText(status) {
   return {
     operational: '正常',
     degraded: '降级',
+    error: '失败',
     failed: '失败',
     unknown: '未知'
   }[bucket];
+}
+
+function providerLabel(provider) {
+  const value = String(provider || '').toLowerCase();
+  return {
+    openai: 'OpenAI',
+    anthropic: 'Anthropic',
+    gemini: 'Gemini'
+  }[value] || provider || 'unknown';
 }
 
 function latency(value) {

@@ -128,7 +128,7 @@ button {
 }
 
 .overall-pill.failed {
-  color: #b91c1c;
+  color: #a16207;
 }
 
 .overall-pill.unknown {
@@ -265,6 +265,7 @@ h2 {
   color: #a16207;
 }
 
+.status-badge.error,
 .status-badge.failed {
   background: var(--red-soft);
   color: #b91c1c;
@@ -362,6 +363,7 @@ h2 {
   background: var(--amber);
 }
 
+.timeline .error,
 .timeline .failed {
   background: var(--red);
 }

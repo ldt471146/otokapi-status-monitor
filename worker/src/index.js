@@ -314,7 +314,7 @@ function summarizeChannels(channels) {
     summary.by_provider[provider][bucket] += 1;
   }
 
-  summary.overall_status = summary.failed > 0 ? 'failed' : summary.degraded > 0 || summary.unknown > 0 ? 'degraded' : 'operational';
+  summary.overall_status = channels.every((channel) => channel.primary_status === 'operational') ? 'operational' : 'degraded';
   return summary;
 }
 
