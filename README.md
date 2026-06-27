@@ -48,6 +48,13 @@ Worker 代理需要设置 Secret：
 npx wrangler secret put OTOKAPI_BEARER_TOKEN --config worker/wrangler.toml
 ```
 
+如果要长期使用 refresh token，需要给 Worker 绑定 KV 保存轮换后的 token，然后设置：
+
+```bash
+npx wrangler kv namespace create OTOKAPI_STATE --config worker/wrangler.toml
+npx wrangler secret put OTOKAPI_REFRESH_TOKEN --config worker/wrangler.toml
+```
+
 部署后把 `public/config.json` 改成：
 
 ```json

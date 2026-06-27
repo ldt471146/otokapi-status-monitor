@@ -35,7 +35,7 @@ async function buildStatus(env) {
   const startedAt = Date.now();
   let token = cleanSecret(env.OTOKAPI_BEARER_TOKEN);
 
-  if (!token && cleanSecret(env.OTOKAPI_REFRESH_TOKEN)) {
+  if (!token && (cleanSecret(env.OTOKAPI_REFRESH_TOKEN) || env.OTOKAPI_STATE)) {
     const refreshed = await refreshAccessToken(env);
     token = refreshed.accessToken;
   }
@@ -135,7 +135,13 @@ async function requestOnce(env, apiPath, options = {}, token) {
 }
 
 async function refreshAccessToken(env) {
-  const refreshToken = cleanSecret(env.OTOKAPI_REFRESH_TOKEN);
+  const storedRefreshToken = env.OTOKAPI_STATE ? cleanSecret(await env.OTOKAPI_STATE.get('refresh_token')) : '';
+  const refreshToken = storedRefreshToken || cleanSecret(env.OTOKAPI_REFRESH_TOKEN);
+  if (!refreshToken) {
+    const error = new Error('Missing refresh token.');
+    error.code = 'AUTH_NOT_CONFIGURED';
+    throw error;
+  }
   const raw = await requestOnce(env, '/auth/refresh', {
     method: 'POST',
     body: { refresh_token: refreshToken }
@@ -145,9 +151,12 @@ async function refreshAccessToken(env) {
     throw new Error('OpenToken refresh response did not contain access_token.');
   }
 
-  return {
-    accessToken: raw.access_token.trim()
-  };
+  const nextRefreshToken = typeof raw.refresh_token === 'string' ? raw.refresh_token.trim() : '';
+  if (nextRefreshToken && nextRefreshToken !== refreshToken && env.OTOKAPI_STATE) {
+    await env.OTOKAPI_STATE.put('refresh_token', nextRefreshToken);
+  }
+
+  return { accessToken: raw.access_token.trim() };
 }
 
 async function safeGet(client, apiPath, params) {
