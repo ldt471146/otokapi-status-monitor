@@ -1,0 +1,7 @@
+name = "otokapi-status-proxy"
+main = "src/index.js"
+compatibility_date = "2026-06-27"
+
+[vars]
+OTOKAPI_BASE_URL = "https://otokapi.com"
+ALLOWED_ORIGIN = "https://ldt471146.github.io"

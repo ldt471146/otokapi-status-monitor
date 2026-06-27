@@ -36,11 +36,25 @@ copy(localStorage.getItem('auth_token'))
 
 ## 实时性说明
 
-GitHub Pages 是静态站，不能安全地在浏览器里直接请求带 token 的 OpenToken API。本项目采用安全的近实时方案：
+GitHub Pages 是静态站，不能安全地在浏览器里直接请求带 token 的 OpenToken API。默认采用安全的近实时方案：
 
 - GitHub Actions 每 5 分钟抓取一次最新状态。
 - 页面每 30 秒重新读取 `data/status.json`。
-- 如果需要 30 秒级真正实时，需要部署一个带鉴权的后端代理。
+- 如果需要 30 秒级真正实时，需要部署 `worker/` 里的 Cloudflare Worker 代理，并在 `public/config.json` 里配置 Worker URL。
+
+Worker 代理需要设置 Secret：
+
+```bash
+npx wrangler secret put OTOKAPI_BEARER_TOKEN --config worker/wrangler.toml
+```
+
+部署后把 `public/config.json` 改成：
+
+```json
+{
+  "apiBaseUrl": "https://<你的-worker地址>"
+}
+```
 
 ## 本地测试
 

@@ -1,7 +1,9 @@
 const DATA_URL = './data/status.json';
+const CONFIG_URL = './config.json';
 const REFRESH_MS = 30000;
 
 const state = {
+  apiBaseUrl: '',
   data: null,
   range: 7,
   refreshTimer: null,
@@ -28,14 +30,30 @@ elements.rangeTabs.forEach((tab) => {
   });
 });
 
-loadData();
+init();
 state.refreshTimer = window.setInterval(() => loadData(), REFRESH_MS);
 state.countdownTimer = window.setInterval(updateCountdown, 1000);
+
+async function init() {
+  await loadConfig();
+  await loadData();
+}
+
+async function loadConfig() {
+  try {
+    const response = await fetch(`${CONFIG_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    if (!response.ok) return;
+    const config = await response.json();
+    state.apiBaseUrl = String(config.apiBaseUrl || '').replace(/\/+$/, '');
+  } catch {
+    state.apiBaseUrl = '';
+  }
+}
 
 async function loadData({ manual = false } = {}) {
   if (manual) elements.refreshButton.disabled = true;
   try {
-    const response = await fetch(`${DATA_URL}?t=${Date.now()}`, { cache: 'no-store' });
+    const response = await fetch(`${dataUrl()}?t=${Date.now()}`, { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.data = await response.json();
     state.lastLoadedAt = new Date();
@@ -111,7 +129,7 @@ function renderChannels(channels) {
 
         <div class="history-head">
           <span>近 60 次记录</span>
-          <span>${secondsUntilRefresh()}S 后刷新</span>
+          <span data-countdown>${secondsUntilRefresh()}S 后刷新</span>
         </div>
         ${renderTimeline(timeline)}
         <div class="history-labels"><span>PAST</span><span>NOW</span></div>
@@ -163,12 +181,20 @@ function updateRangeTabs() {
 }
 
 function updateCountdown() {
-  elements.refreshPill.textContent = `自动刷新: ${secondsUntilRefresh()}s`;
+  const seconds = secondsUntilRefresh();
+  elements.refreshPill.textContent = `自动刷新: ${seconds}s`;
+  document.querySelectorAll('[data-countdown]').forEach((element) => {
+    element.textContent = `${seconds}S 后刷新`;
+  });
 }
 
 function secondsUntilRefresh() {
   if (!state.nextRefreshAt) return '--';
   return Math.max(0, Math.ceil((state.nextRefreshAt - Date.now()) / 1000));
+}
+
+function dataUrl() {
+  return state.apiBaseUrl ? `${state.apiBaseUrl}/status` : DATA_URL;
 }
 
 function availabilityForRange(channel, range) {
