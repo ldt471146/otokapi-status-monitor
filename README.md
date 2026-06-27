@@ -32,6 +32,7 @@ copy(localStorage.getItem('auth_token'))
 - token 只在 GitHub Actions 里作为 Secret 使用，不会写入前端页面。
 - `public/data/status.json` 是部署到 Pages 的展示数据，任何能访问 Pages 的人都能看到里面的订阅余量、用量数字和渠道状态。
 - 如果这些数据不适合公开，请保持仓库私有并确认 GitHub Pages 的访问策略，或改用私有服务器/Cloudflare Worker 做鉴权展示。
+- 当前免费 GitHub Pages 部署需要仓库公开；配置 token 前不会泄露 OpenToken 账号数据，配置后页面上的聚合状态会公开。
 
 ## 实时性说明
 
@@ -50,4 +51,3 @@ python -m http.server 4173 -d public
 ```
 
 然后打开 `http://127.0.0.1:4173`。
-
