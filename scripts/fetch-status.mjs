@@ -26,6 +26,9 @@ main().catch(async (error) => {
   payload.error = sanitizeError(error);
   await writeJson(config.output, payload);
   console.error(payload.error.message);
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    process.exitCode = 1;
+  }
 });
 
 async function main() {
@@ -99,6 +102,10 @@ async function main() {
   payload.available_channels = summarizeAvailableChannels(availableResult.data);
 
   await writeJson(config.output, payload);
+  if (!payload.ok && process.env.GITHUB_ACTIONS === 'true') {
+    console.error('All OpenToken API requests failed; refusing to deploy empty status data.');
+    process.exitCode = 1;
+  }
 }
 
 function createApiClient({ token, cookie, refreshToken }) {
