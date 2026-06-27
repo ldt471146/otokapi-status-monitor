@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>OpenToken 状态监控</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f9f8f'/%3E%3Cpath d='M8 17.5 13.2 22 24 10' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">OpenToken Monitor</p>
+          <h1>订阅、用量与渠道状态</h1>
+        </div>
+        <div class="topbar-actions">
+          <a class="button secondary" href="https://otokapi.com/monitor" target="_blank" rel="noreferrer">官方页</a>
+          <button class="button" id="refreshButton" type="button" aria-label="刷新状态">刷新</button>
+        </div>
+      </header>
+
+      <section class="status-strip" id="statusStrip" aria-live="polite"></section>
+
+      <section class="metrics-grid" id="metricGrid" aria-label="用量概览"></section>
+
+      <section class="layout-grid">
+        <div class="main-column">
+          <section class="section">
+            <div class="section-header">
+              <div>
+                <h2>渠道状态</h2>
+                <p id="channelSubtitle">读取中</p>
+              </div>
+              <div class="segmented" id="providerFilters" role="tablist" aria-label="渠道筛选"></div>
+            </div>
+            <div class="channel-grid" id="channelGrid"></div>
+          </section>
+
+          <section class="section">
+            <div class="section-header">
+              <div>
+                <h2>订阅与额度</h2>
+                <p id="subscriptionSubtitle">读取中</p>
+              </div>
+            </div>
+            <div class="subscription-grid" id="subscriptionGrid"></div>
+          </section>
+        </div>
+
+        <aside class="side-column">
+          <section class="section compact">
+            <div class="section-header">
+              <div>
+                <h2>平台额度</h2>
+                <p>按平台聚合的当前用量</p>
+              </div>
+            </div>
+            <div id="quotaList" class="quota-list"></div>
+          </section>
+
+          <section class="section compact">
+            <div class="section-header">
+              <div>
+                <h2>抓取状态</h2>
+                <p id="fetchSubtitle">等待数据</p>
+              </div>
+            </div>
+            <div id="fetchPanel" class="fetch-panel"></div>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

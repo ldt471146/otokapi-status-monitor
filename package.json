@@ -1,0 +1,14 @@
+{
+  "name": "otokapi-status-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "fetch": "node scripts/fetch-status.mjs",
+    "test": "node --check scripts/fetch-status.mjs && node --check public/app.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
+

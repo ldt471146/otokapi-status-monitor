@@ -1,0 +1,54 @@
+{
+  "ok": false,
+  "generated_at": "2026-06-27T04:52:11.443Z",
+  "generated_at_unix_ms": 1782535931444,
+  "duration_ms": 2,
+  "source": "https://otokapi.com",
+  "auth_configured": false,
+  "refresh_token_rotated": false,
+  "warnings": [],
+  "errors": {},
+  "channel_summary": {
+    "total": 0,
+    "operational": 0,
+    "degraded": 0,
+    "failed": 0,
+    "unknown": 0,
+    "by_provider": {},
+    "overall_status": "unknown"
+  },
+  "channels": [],
+  "subscription_summary": {
+    "active_count": 0,
+    "expired_count": 0,
+    "raw_available": false
+  },
+  "subscriptions": [],
+  "usage": {
+    "today_requests": 0,
+    "total_requests": 0,
+    "today_tokens": 0,
+    "total_tokens": 0,
+    "today_input_tokens": 0,
+    "today_output_tokens": 0,
+    "total_input_tokens": 0,
+    "total_output_tokens": 0,
+    "today_cost": 0,
+    "total_cost": 0,
+    "today_actual_cost": 0,
+    "total_actual_cost": 0,
+    "rpm": 0,
+    "tpm": 0,
+    "average_duration_ms": 0,
+    "by_platform": []
+  },
+  "platform_quotas": [],
+  "available_channels": {
+    "total_families": 0,
+    "rows": []
+  },
+  "error": {
+    "code": "AUTH_NOT_CONFIGURED",
+    "message": "Missing OTOKAPI_REFRESH_TOKEN, OTOKAPI_BEARER_TOKEN, or OTOKAPI_COOKIE."
+  }
+}
