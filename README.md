@@ -1,6 +1,11 @@
 # OpenToken Status Monitor
 
-GitHub Pages 静态监控页，用 GitHub Actions 定时抓取 `https://otokapi.com/monitor` 背后的接口，展示订阅、用量和渠道状态。
+GitHub Pages 监控页，通过 Cloudflare Worker 实时代理 `https://otokapi.com/monitor` 背后的接口，展示订阅、用量和渠道状态。
+
+当前线上地址：
+
+- Pages: `https://ldt471146.github.io/otokapi-status-monitor/`
+- Worker: `https://otokapi-status-proxy.ldt471146.workers.dev`
 
 ## 部署方式
 
@@ -27,6 +32,20 @@ copy(localStorage.getItem('auth_token'))
 
 4. 打开 `Actions -> Update OpenToken status and deploy Pages -> Run workflow` 手动触发一次。
 
+Cloudflare Worker 实时代理需要单独设置 Secret：
+
+```bash
+npx wrangler secret put OTOKAPI_REFRESH_TOKEN --config worker/wrangler.toml
+```
+
+如果 refresh token 暂时不可用，可以设置短期 access token：
+
+```bash
+npx wrangler secret put OTOKAPI_BEARER_TOKEN --config worker/wrangler.toml
+```
+
+access token 会过期，长期运行必须换成新的 refresh token。
+
 ## 安全边界
 
 - token 只在 GitHub Actions 里作为 Secret 使用，不会写入前端页面。
@@ -36,30 +55,25 @@ copy(localStorage.getItem('auth_token'))
 
 ## 实时性说明
 
-GitHub Pages 是静态站，不能安全地在浏览器里直接请求带 token 的 OpenToken API。默认采用安全的近实时方案：
+GitHub Pages 是静态站，不能安全地在浏览器里直接请求带 token 的 OpenToken API。当前采用 Worker 代理方案：
 
-- GitHub Actions 每 5 分钟抓取一次最新状态。
-- 页面每 30 秒重新读取 `data/status.json`。
-- 如果需要 30 秒级真正实时，需要部署 `worker/` 里的 Cloudflare Worker 代理，并在 `public/config.json` 里配置 Worker URL。
+- 页面每 30 秒请求 Worker 的 `/status`。
+- Worker 持有 OpenToken token，并实时请求 `/api/v1/channel-monitors` 等接口。
+- `public/data/status.json` 仍保留为 Worker 不可用时的静态回退。
+- GitHub Actions 仍会发布 Pages，并继续生成静态回退数据。
 
-Worker 代理需要设置 Secret：
-
-```bash
-npx wrangler secret put OTOKAPI_BEARER_TOKEN --config worker/wrangler.toml
-```
-
-如果要长期使用 refresh token，需要给 Worker 绑定 KV 保存轮换后的 token，然后设置：
+长期 refresh token 支持需要 Worker KV 保存轮换后的 token：
 
 ```bash
 npx wrangler kv namespace create OTOKAPI_STATE --config worker/wrangler.toml
 npx wrangler secret put OTOKAPI_REFRESH_TOKEN --config worker/wrangler.toml
 ```
 
-部署后把 `public/config.json` 改成：
+`public/config.json` 当前配置为：
 
 ```json
 {
-  "apiBaseUrl": "https://<你的-worker地址>"
+  "apiBaseUrl": "https://otokapi-status-proxy.ldt471146.workers.dev"
 }
 ```
 
