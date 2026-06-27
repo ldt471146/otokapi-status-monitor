@@ -6,7 +6,6 @@ compatibility_date = "2026-06-27"
 OTOKAPI_BASE_URL = "https://otokapi.com"
 ALLOWED_ORIGIN = "https://ldt471146.github.io"
 
-# Optional, for long-running refresh-token auth:
-# [[kv_namespaces]]
-# binding = "OTOKAPI_STATE"
-# id = "<created-by-wrangler-kv-namespace-create>"
+[[kv_namespaces]]
+binding = "OTOKAPI_STATE"
+id = "39db17df327c4b7db653f6ea37405842"

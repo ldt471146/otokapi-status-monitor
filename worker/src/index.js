@@ -2,6 +2,11 @@ const DEFAULT_BASE_URL = 'https://otokapi.com';
 const TIMEZONE = 'Asia/Shanghai';
 const MAX_CHANNEL_DETAILS = 80;
 const MAX_TIMELINE_POINTS = 80;
+const ACCESS_TOKEN_CACHE_KEY = 'access_token';
+const REFRESH_TOKEN_CACHE_KEY = 'refresh_token';
+const DEFAULT_ACCESS_TOKEN_TTL_SECONDS = 600;
+const MIN_ACCESS_TOKEN_TTL_SECONDS = 60;
+const MAX_ACCESS_TOKEN_TTL_SECONDS = 3600;
 
 export default {
   async fetch(request, env) {
@@ -33,20 +38,15 @@ export default {
 
 async function buildStatus(env) {
   const startedAt = Date.now();
-  let token = cleanSecret(env.OTOKAPI_BEARER_TOKEN);
+  const tokenInfo = await getAccessToken(env);
 
-  if (!token && (cleanSecret(env.OTOKAPI_REFRESH_TOKEN) || env.OTOKAPI_STATE)) {
-    const refreshed = await refreshAccessToken(env);
-    token = refreshed.accessToken;
-  }
-
-  if (!token) {
+  if (!tokenInfo.accessToken) {
     const error = new Error('Missing OTOKAPI_BEARER_TOKEN or OTOKAPI_REFRESH_TOKEN.');
     error.code = 'AUTH_NOT_CONFIGURED';
     throw error;
   }
 
-  const client = createApiClient(env, token);
+  const client = createApiClient(env, tokenInfo);
   const [channelsResult, subscriptionsResult, usageResult, quotasResult, availableResult, subscriptionSummaryResult] =
     await Promise.all([
       safeGet(client, '/channel-monitors'),
@@ -91,10 +91,32 @@ async function buildStatus(env) {
   };
 }
 
-function createApiClient(env, token) {
+function createApiClient(env, tokenInfo) {
+  let activeToken = tokenInfo.accessToken;
+  let refreshPromise = null;
+
+  async function refreshOnce() {
+    if (!tokenInfo.canRefresh) {
+      const error = new Error('Access token expired and no refresh token is configured.');
+      error.code = 'AUTH_EXPIRED';
+      throw error;
+    }
+    refreshPromise ||= refreshAccessToken(env);
+    const refreshed = await refreshPromise;
+    activeToken = refreshed.accessToken;
+    refreshPromise = null;
+    return activeToken;
+  }
+
   return {
-    request(apiPath, options = {}) {
-      return requestOnce(env, apiPath, options, token);
+    async request(apiPath, options = {}) {
+      try {
+        return await requestOnce(env, apiPath, options, activeToken);
+      } catch (error) {
+        if (error.status !== 401) throw error;
+        const refreshedToken = await refreshOnce();
+        return requestOnce(env, apiPath, options, refreshedToken);
+      }
     }
   };
 }
@@ -134,9 +156,38 @@ async function requestOnce(env, apiPath, options = {}, token) {
   return unwrapEnvelope(json, apiPath);
 }
 
+async function getAccessToken(env) {
+  const staticBearer = cleanSecret(env.OTOKAPI_BEARER_TOKEN);
+  const hasRefreshToken = Boolean(await getRefreshToken(env));
+
+  if (env.OTOKAPI_STATE) {
+    const cachedAccessToken = cleanSecret(await env.OTOKAPI_STATE.get(ACCESS_TOKEN_CACHE_KEY));
+    if (cachedAccessToken) {
+      return { accessToken: cachedAccessToken, canRefresh: hasRefreshToken };
+    }
+  }
+
+  if (hasRefreshToken) {
+    try {
+      return { accessToken: (await refreshAccessToken(env)).accessToken, canRefresh: true };
+    } catch (error) {
+      if (staticBearer && isRefreshAuthFailure(error)) {
+        return { accessToken: staticBearer, canRefresh: true };
+      }
+      throw error;
+    }
+  }
+
+  return { accessToken: staticBearer, canRefresh: false };
+}
+
+async function getRefreshToken(env) {
+  const storedRefreshToken = env.OTOKAPI_STATE ? cleanSecret(await env.OTOKAPI_STATE.get(REFRESH_TOKEN_CACHE_KEY)) : '';
+  return storedRefreshToken || cleanSecret(env.OTOKAPI_REFRESH_TOKEN);
+}
+
 async function refreshAccessToken(env) {
-  const storedRefreshToken = env.OTOKAPI_STATE ? cleanSecret(await env.OTOKAPI_STATE.get('refresh_token')) : '';
-  const refreshToken = storedRefreshToken || cleanSecret(env.OTOKAPI_REFRESH_TOKEN);
+  const refreshToken = await getRefreshToken(env);
   if (!refreshToken) {
     const error = new Error('Missing refresh token.');
     error.code = 'AUTH_NOT_CONFIGURED';
@@ -153,10 +204,44 @@ async function refreshAccessToken(env) {
 
   const nextRefreshToken = typeof raw.refresh_token === 'string' ? raw.refresh_token.trim() : '';
   if (nextRefreshToken && nextRefreshToken !== refreshToken && env.OTOKAPI_STATE) {
-    await env.OTOKAPI_STATE.put('refresh_token', nextRefreshToken);
+    await env.OTOKAPI_STATE.put(REFRESH_TOKEN_CACHE_KEY, nextRefreshToken);
+  }
+
+  if (env.OTOKAPI_STATE) {
+    await env.OTOKAPI_STATE.put(ACCESS_TOKEN_CACHE_KEY, raw.access_token.trim(), {
+      expirationTtl: accessTokenCacheTtl(raw.access_token)
+    });
   }
 
   return { accessToken: raw.access_token.trim() };
+}
+
+function isRefreshAuthFailure(error) {
+  return error?.apiPath === '/auth/refresh' && (error.status === 400 || error.status === 401 || error.status === 403);
+}
+
+function accessTokenCacheTtl(token) {
+  const expiresAt = jwtExpirationUnixSeconds(token);
+  if (!expiresAt) return DEFAULT_ACCESS_TOKEN_TTL_SECONDS;
+  const ttl = expiresAt - Math.floor(Date.now() / 1000) - MIN_ACCESS_TOKEN_TTL_SECONDS;
+  if (ttl < MIN_ACCESS_TOKEN_TTL_SECONDS) return MIN_ACCESS_TOKEN_TTL_SECONDS;
+  return Math.min(ttl, MAX_ACCESS_TOKEN_TTL_SECONDS);
+}
+
+function jwtExpirationUnixSeconds(token) {
+  const [, payload] = String(token || '').split('.');
+  if (!payload) return null;
+  try {
+    const json = JSON.parse(atob(base64UrlToBase64(payload)));
+    return Number.isFinite(Number(json.exp)) ? Number(json.exp) : null;
+  } catch {
+    return null;
+  }
+}
+
+function base64UrlToBase64(value) {
+  const normalized = String(value).replace(/-/g, '+').replace(/_/g, '/');
+  return normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
 }
 
 async function safeGet(client, apiPath, params) {

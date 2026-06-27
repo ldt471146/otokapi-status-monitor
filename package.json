@@ -5,10 +5,9 @@
   "type": "module",
   "scripts": {
     "fetch": "node scripts/fetch-status.mjs",
-    "test": "node --check scripts/fetch-status.mjs && node --check public/app.js"
+    "test": "node --check scripts/fetch-status.mjs && node --check public/app.js && node --check worker/src/index.js"
   },
   "engines": {
     "node": ">=22"
   }
 }
-
